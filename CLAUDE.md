@@ -23,8 +23,16 @@ See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 - **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
 - **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Message Queue** (Redis / BullMQ) → video processing job queue
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+## Video Upload & Processing Architecture (Phase 03)
+
+- **Resumable Uploads:** Powered by tus protocol (`@tus/server` + `@tus/s3-store`) up to 10GB direct-to-S3/MinIO.
+- **Video Storage:** MinIO S3-compatible bucket `videos`.
+- **Processing Queue:** BullMQ queue `video-processing` over Redis 7.
+- **Standalone Worker:** Dedicated process (`worker.ts`) extracting video metadata (`ffprobe`) and 1280x720 thumbnails (`ffmpeg`) at 1 second mark.
+- **Streaming & Download:** RFC 7233 HTTP 206 Partial Content range requests on `/videos/:publicId/stream` and presigned/proxied downloads on `/videos/:publicId/download`.
 
 ## Docker Networking
 
