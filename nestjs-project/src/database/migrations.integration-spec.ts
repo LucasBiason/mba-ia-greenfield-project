@@ -43,7 +43,9 @@ describe('Database migrations (integration)', () => {
       `DROP TYPE IF EXISTS "verification_tokens_type_enum" CASCADE`,
     );
     await dataSource.query(`DROP TYPE IF EXISTS "videos_status_enum" CASCADE`);
-    await dataSource.query(`DROP TYPE IF EXISTS "videos_visibility_enum" CASCADE`);
+    await dataSource.query(
+      `DROP TYPE IF EXISTS "videos_visibility_enum" CASCADE`,
+    );
   });
 
   afterAll(async () => {

@@ -8,12 +8,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import type { JwtPayload } from '../auth/auth.types';
 import { InitUploadDto } from './dto/init-upload.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -31,6 +33,7 @@ export class VideosController {
   /**
    * Initializes a video upload / draft.
    */
+  @Public()
   @Post('upload/init')
   @HttpCode(201)
   async initUpload(
@@ -46,8 +49,36 @@ export class VideosController {
   }
 
   /**
+   * Completes an upload and triggers FFmpeg worker processing.
+   */
+  @Public()
+  @Post(':publicId/complete')
+  @HttpCode(200)
+  async completeUpload(
+    @Param('publicId') publicId: string,
+    @Body() body: { storageKey?: string; fileSize?: number },
+  ) {
+    const video = await this.videosService.findByPublicId(publicId);
+    return this.videosService.markUploadCompleted(
+      video.id,
+      body.storageKey || video.video_key,
+      body.fileSize || Number(video.file_size) || 0,
+    );
+  }
+
+  /**
+   * Lists videos optionally filtered by channelId.
+   */
+  @Public()
+  @Get()
+  async findAll(@Query('channelId') channelId?: string) {
+    return this.videosService.findAll(channelId);
+  }
+
+  /**
    * Public discovery endpoint via publicId.
    */
+  @Public()
   @Get(':publicId')
   async getByPublicId(@Param('publicId') publicId: string) {
     return this.videosService.findByPublicId(publicId);
@@ -56,6 +87,7 @@ export class VideosController {
   /**
    * Streams video content with RFC 7233 Range support (HTTP 206 Partial Content).
    */
+  @Public()
   @Get(':publicId/stream')
   async streamVideo(
     @Param('publicId') publicId: string,
@@ -71,6 +103,7 @@ export class VideosController {
   /**
    * Generates a signed download URL and redirects the client to download the original video.
    */
+  @Public()
   @Get(':publicId/download')
   async downloadVideo(
     @Param('publicId') publicId: string,
@@ -100,6 +133,7 @@ export class VideosController {
   /**
    * Catch-all handler delegating tus protocol requests to the TusServer.
    */
+  @Public()
   @ApiExcludeEndpoint()
   @All(['upload', 'upload/:uploadId'])
   async handleTusUpload(

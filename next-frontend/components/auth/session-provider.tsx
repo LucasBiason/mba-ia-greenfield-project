@@ -31,4 +31,8 @@ function SessionProvider({ initialSession, children }: SessionProviderProps) {
   )
 }
 
-export { SessionProvider, SessionContext }
+function useSession() {
+  return React.useContext(SessionContext)
+}
+
+export { SessionProvider, SessionContext, useSession }

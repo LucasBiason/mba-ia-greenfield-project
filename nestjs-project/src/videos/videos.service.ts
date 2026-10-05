@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Queue } from 'bullmq';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import type { Server as TusServer } from '@tus/server';
 import { nanoid } from 'nanoid';
 import { Channel } from '../channels/entities/channel.entity';
@@ -337,6 +337,21 @@ export class VideosService {
     }
 
     return this.videoRepository.save(video);
+  }
+
+  /**
+   * Lists videos optionally filtered by channelId.
+   */
+  async findAll(channelId?: string): Promise<Video[]> {
+    const where: FindOptionsWhere<Video> = {};
+    if (channelId) {
+      where.channel_id = channelId;
+    }
+    return this.videoRepository.find({
+      where,
+      relations: ['channel'],
+      order: { created_at: 'DESC' },
+    });
   }
 
   /**
