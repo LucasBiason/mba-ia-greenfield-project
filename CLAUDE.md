@@ -12,19 +12,39 @@ This is a monorepo with two main areas:
 
 - `nestjs-project/` — Backend API (NestJS 11, TypeScript, Express). Contains modules for users, channels, videos, comments, etc.
 - `docs/` — Project documentation, architecture diagrams, and planning.
-- `next-frontend/` (Next.js) — not yet initialized
+- `next-frontend/` — Frontend web application (Next.js 16).
 
 ## Architecture (C4 Container Diagram)
 
 See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 
-- **Frontend** (Next.js) → calls API via REST, streams from Object Storage
-- **API** (Nest.js) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
+- **Frontend** (Next.js 16) → Creator Studio, video playback, and auth via BFF Route Handlers with iron-session.
+- **API** (NestJS 11) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
 - **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
-- **Database** (PostgreSQL) → users, channels, videos, comments, likes
+- **Database** (PostgreSQL) → users, channels, videos, comments, likes (`streamtube` for dev, `streamtube_test` for test suites)
 - **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Message Queue** (Redis / BullMQ) → video processing job queue
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+## Video Upload & Processing Architecture (Phase 03)
+
+- **Resumable Uploads:** Powered by tus protocol (`@tus/server` + `@tus/s3-store`) up to 10GB chunk streaming via API to MinIO S3.
+- **Video Storage:** MinIO S3-compatible bucket `videos` and `thumbnails`.
+- **Processing Queue:** BullMQ queue `video-processing` over Redis 7.
+- **Standalone Worker:** Dedicated process (`worker.ts`) extracting video metadata (`ffprobe`) and 1280x720 thumbnails (`ffmpeg`) at 1 second mark.
+- **Streaming & Download:** RFC 7233 HTTP 206 Partial Content range requests on `/videos/:publicId/stream` and downloads with `Content-Disposition: attachment` on `/videos/:publicId/download`.
+- **Thumbnail Endpoint:** `GET /videos/:publicId/thumbnail` streams the JPEG thumbnail directly from storage with `image/jpeg` MIME.
+- **Creator Studio Frontend:** `/studio` and `/studio/upload` with tus resumable upload and session token auto-renewal on 401.
+- **Video Endpoints:**
+  - `POST /videos/upload/init` (Draft creation, channel ownership verification, 10GB & MIME cap)
+  - `PATCH/HEAD/POST /videos/upload/*` (tus chunk ingestion streamed to MinIO)
+  - `POST /videos/:publicId/complete` (Mark upload completed & enqueue worker job)
+  - `GET /videos/:publicId` (Get public/unlisted video metadata, or private if owner)
+  - `PATCH /videos/:publicId` (Update title, description, visibility)
+  - `GET /videos/:publicId/stream` (RFC 7233 HTTP 206 partial content streaming)
+  - `GET /videos/:publicId/thumbnail` (Serve video thumbnail JPEG)
+  - `GET /videos/:publicId/download` (Direct binary download with Content-Disposition)
+  - `GET /auth/me` (Profile with channel relation loaded)
 
 ## Docker Networking
 
