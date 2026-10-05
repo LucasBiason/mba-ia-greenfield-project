@@ -34,6 +34,10 @@ docker compose exec nestjs-api npm run start:dev
 Services:
 - `nestjs-api` — NestJS API, port `3000`
 - `db` — PostgreSQL 17, port `5432`, database `streamtube`, user/password `streamtube`
+- `storage` — MinIO Object Storage, port `9000` (S3 API), `9001` (Web Console)
+- `queue` — Redis 7, port `6379`
+- `mailpit` — Mailpit SMTP server, port `1025` (SMTP), `8025` (Web UI)
+- `worker` — Dedicated Video Worker process with FFmpeg
 
 All verification and teardown commands run on the **host machine**:
 
@@ -47,6 +51,9 @@ docker compose exec db pg_isready -U streamtube
 # Check container logs
 docker compose logs nestjs-api
 docker compose logs db
+docker compose logs worker
+docker compose logs storage
+docker compose logs queue
 
 # Tear down the entire environment
 docker compose down
@@ -60,6 +67,8 @@ docker compose down
 
 ```bash
 npm run start:dev                        # Dev server with hot-reload
+npm run start:worker:dev                 # Video worker with hot-reload
+npm run start:worker                     # Video worker in production
 npm run build                            # Compile to dist/
 npm run start:prod                       # Run compiled build
 
