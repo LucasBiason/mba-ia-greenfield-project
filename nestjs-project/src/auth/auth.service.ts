@@ -355,4 +355,19 @@ export class AuthService {
     await this.verificationTokenRepository.save(verificationToken);
     return rawToken;
   }
+
+  async getUserProfile(userId: string): Promise<{
+    sub: string;
+    email: string;
+    channel_id: string | null;
+    channel_slug: string | null;
+  }> {
+    const user = await this.usersService.findByIdWithChannel(userId);
+    return {
+      sub: userId,
+      email: user?.email ?? '',
+      channel_id: user?.channel?.id ?? null,
+      channel_slug: user?.channel?.nickname ?? null,
+    };
+  }
 }

@@ -6,5 +6,9 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "setupFiles": ["dotenv/config"]
+  "setupFiles": ["dotenv/config"],
+  "moduleNameMapper": {
+    "^@tus/server$": "<rootDir>/../src/test/mocks/tus-server.mock.ts",
+    "^@tus/s3-store$": "<rootDir>/../src/test/mocks/tus-s3-store.mock.ts"
+  }
 }

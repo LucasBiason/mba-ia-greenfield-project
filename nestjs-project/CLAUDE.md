@@ -34,6 +34,10 @@ docker compose exec nestjs-api npm run start:dev
 Services:
 - `nestjs-api` — NestJS API, port `3000`
 - `db` — PostgreSQL 17, port `5432`, database `streamtube`, user/password `streamtube`
+- `storage` — MinIO Object Storage, port `9000` (S3 API), `9001` (Web Console)
+- `queue` — Redis 7, port `6379`
+- `mailpit` — Mailpit SMTP server, port `1025` (SMTP), `8025` (Web UI)
+- `worker` — Dedicated Video Worker process with FFmpeg
 
 All verification and teardown commands run on the **host machine**:
 
@@ -47,6 +51,9 @@ docker compose exec db pg_isready -U streamtube
 # Check container logs
 docker compose logs nestjs-api
 docker compose logs db
+docker compose logs worker
+docker compose logs storage
+docker compose logs queue
 
 # Tear down the entire environment
 docker compose down
@@ -60,6 +67,8 @@ docker compose down
 
 ```bash
 npm run start:dev                        # Dev server with hot-reload
+npm run start:worker:dev                 # Video worker with hot-reload
+npm run start:worker                     # Video worker in production
 npm run build                            # Compile to dist/
 npm run start:prod                       # Run compiled build
 
@@ -159,3 +168,16 @@ NestJS with standard module structure. Source lives in `src/`, compiled output i
 ## REST Conventions
 
 This is a RESTful API. All endpoints must follow standard REST conventions — correct HTTP methods, proper status codes, plural resource nouns, and consistent URL structure. Details are enforced via rules on controller files.
+
+## Video Module Endpoints (Phase 03)
+
+- `POST /videos/upload/init` — Initiates video draft (JWT required, anti-IDOR checks channel ownership, validates 10GB cap and MIME).
+- `PATCH/HEAD/POST /videos/upload/*` — tus protocol chunk ingestion direct to MinIO S3Store.
+- `POST /videos/:publicId/complete` — Completes upload, transitions to `PROCESSING`, enqueues BullMQ job (JWT required, owner only).
+- `GET /videos/:publicId` — Retrieves video metadata (public/unlisted accessible anonymously; private requires owner).
+- `PATCH /videos/:publicId` — Updates video title, description, visibility (JWT required, owner only).
+- `GET /videos/:publicId/stream` — RFC 7233 HTTP 206 Partial Content range streaming from MinIO (requires status `READY`).
+- `GET /videos/:publicId/thumbnail` — Direct stream of thumbnail JPEG image with `image/jpeg` content type.
+- `GET /videos/:publicId/download` — Direct download with `Content-Disposition: attachment` (requires status `READY`).
+- `GET /auth/me` — User profile endpoint enriched with associated channel (`channelId`, `channelSlug`).
+

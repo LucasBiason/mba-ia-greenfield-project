@@ -394,12 +394,12 @@
     },
     "/auth/me": {
       "get": {
-        "description": "Returns the authenticated user's profile from the JWT payload.",
+        "description": "Returns the authenticated user's profile and channel information.",
         "operationId": "AuthController_me",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Current user payload",
+            "description": "Current user payload and channel",
             "content": {
               "application/json": {
                 "schema": {
@@ -411,6 +411,15 @@
                     "email": {
                       "type": "string",
                       "format": "email"
+                    },
+                    "channel_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "channel_slug": {
+                      "type": "string",
+                      "nullable": true
                     }
                   }
                 }
@@ -436,6 +445,450 @@
         "summary": "Get current user",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/videos/upload/init": {
+      "post": {
+        "description": "Creates a new video draft in UPLOADING status and returns the tus upload endpoint.",
+        "operationId": "VideosController_initUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Video upload draft initialized successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed on request body parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authentication token"
+          },
+          "403": {
+            "description": "Authenticated user is not the owner of the channel (anti-IDOR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Channel not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File size exceeds maximum allowed limit (10GB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported video MIME type format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Initialize a video upload draft",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos/{publicId}/complete": {
+      "post": {
+        "description": "Notifies upload completion, moves status to PROCESSING and enqueues FFmpeg processing job.",
+        "operationId": "VideosController_completeUpload",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video transitioned to PROCESSING and enqueued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or storageKey does not belong to this video",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authentication token"
+          },
+          "403": {
+            "description": "Authenticated user is not the channel owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Video not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Complete video upload",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos": {
+      "get": {
+        "description": "Returns a catalog of videos, filtered by channel when requested.",
+        "operationId": "VideosController_findAll",
+        "parameters": [
+          {
+            "name": "channelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of video resources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VideoResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List videos",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos/{publicId}": {
+      "get": {
+        "description": "Returns video details by 12-char nanoid identifier.",
+        "operationId": "VideosController_getByPublicId",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video metadata details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Private video not accessible by current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Video not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get video details by public ID",
+        "tags": [
+          "videos"
+        ]
+      },
+      "patch": {
+        "description": "Updates editable video metadata (title, description, visibility) for the channel owner.",
+        "operationId": "VideosController_updateMetadata",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video metadata updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authentication token"
+          },
+          "403": {
+            "description": "Authenticated user is not the channel owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Video not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update video metadata",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos/{publicId}/stream": {
+      "get": {
+        "description": "Streams video content with support for RFC 7233 HTTP 206 Partial Content range requests.",
+        "operationId": "VideosController_streamVideo",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full video content stream"
+          },
+          "206": {
+            "description": "Partial range content stream"
+          },
+          "404": {
+            "description": "Video not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Video is not yet in READY status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Stream video content",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos/{publicId}/thumbnail": {
+      "get": {
+        "description": "Streams JPEG thumbnail image generated for the video.",
+        "operationId": "VideosController_getThumbnail",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thumbnail image binary stream"
+          },
+          "404": {
+            "description": "Video or thumbnail not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get video thumbnail image",
+        "tags": [
+          "videos"
+        ]
+      }
+    },
+    "/videos/{publicId}/download": {
+      "get": {
+        "description": "Streams video binary with Content-Disposition attachment header for direct download.",
+        "operationId": "VideosController_downloadVideo",
+        "parameters": [
+          {
+            "name": "publicId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video download binary stream"
+          },
+          "404": {
+            "description": "Video not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Download original video file",
+        "tags": [
+          "videos"
         ]
       }
     }
@@ -480,6 +933,256 @@
       "ResetPasswordDto": {
         "type": "object",
         "properties": {}
+      },
+      "InitUploadDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string",
+            "description": "Channel UUID that will own the video (optional, defaults to authenticated user channel)",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "title": {
+            "type": "string",
+            "description": "Initial video title (optional at draft stage)",
+            "maxLength": 150,
+            "example": "Introduction to Full Cycle"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "Original name of the video file",
+            "example": "fullcycle-lesson1.mp4"
+          },
+          "fileSize": {
+            "type": "number",
+            "description": "File size in bytes (max 10GB = 10737418240 bytes)",
+            "minimum": 1,
+            "maximum": 10737418240,
+            "example": 104857600
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type of the video (video/mp4, video/webm, video/quicktime)",
+            "example": "video/mp4"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Client-generated token to avoid duplicate drafts on network retries",
+            "example": "retry-uuid-12345"
+          }
+        },
+        "required": [
+          "fileName",
+          "fileSize",
+          "mimeType"
+        ]
+      },
+      "UploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Internal video UUID used by the tus upload session",
+            "format": "uuid"
+          },
+          "publicId": {
+            "type": "string",
+            "description": "Unique 12-character public identifier",
+            "example": "HP8JZ2O3bROa"
+          },
+          "title": {
+            "type": "string",
+            "description": "Initial video title",
+            "example": "StreamTube Demo"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current upload status",
+            "enum": [
+              "DRAFT",
+              "UPLOADING",
+              "PROCESSING",
+              "READY",
+              "ERROR"
+            ],
+            "example": "UPLOADING"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "Tus resumable upload endpoint for streaming chunks",
+            "example": "/videos/upload/d17b3c8f-5192-49ee-9150-13eeadcfef02"
+          },
+          "storageKey": {
+            "type": "string",
+            "description": "Pre-allocated storage key in the bucket",
+            "example": "videos/HP8JZ2O3bROa/demo.mp4"
+          }
+        },
+        "required": [
+          "id",
+          "publicId",
+          "title",
+          "status",
+          "uploadUrl",
+          "storageKey"
+        ]
+      },
+      "CompleteUploadDto": {
+        "type": "object",
+        "properties": {
+          "storageKey": {
+            "type": "string",
+            "description": "Storage key in the videos bucket (must strictly match videos/<publicId>/<filename>)",
+            "example": "videos/abc123xyz456/sample.mp4"
+          },
+          "fileSize": {
+            "type": "number",
+            "description": "File size in bytes (max 10GB = 10,737,418,240 bytes)",
+            "example": 10485760
+          }
+        }
+      },
+      "VideoChannelDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Channel public UUID",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Channel name"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "Channel unique nickname/handle"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nickname"
+        ]
+      },
+      "VideoResponseDto": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "description": "Unique 12-character public identifier",
+            "example": "HP8JZ2O3bROa"
+          },
+          "title": {
+            "type": "object",
+            "description": "Video title",
+            "nullable": true,
+            "example": "StreamTube Demo"
+          },
+          "description": {
+            "type": "object",
+            "description": "Video description",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Video processing status",
+            "enum": [
+              "DRAFT",
+              "UPLOADING",
+              "PROCESSING",
+              "READY",
+              "ERROR"
+            ],
+            "example": "READY"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Video visibility",
+            "enum": [
+              "PUBLIC",
+              "UNLISTED",
+              "PRIVATE"
+            ],
+            "example": "PUBLIC"
+          },
+          "fileSize": {
+            "type": "string",
+            "description": "Total file size in bytes (up to 10GB)",
+            "example": "104857600"
+          },
+          "originalFilename": {
+            "type": "string",
+            "description": "Original uploaded filename",
+            "example": "demo.mp4"
+          },
+          "thumbnailKey": {
+            "type": "object",
+            "description": "Storage key for thumbnail image",
+            "nullable": true
+          },
+          "durationInSeconds": {
+            "type": "object",
+            "description": "Video duration in seconds",
+            "nullable": true,
+            "example": 120
+          },
+          "channel": {
+            "description": "Channel that owns this video",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VideoChannelDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last update timestamp"
+          }
+        },
+        "required": [
+          "publicId",
+          "status",
+          "visibility",
+          "fileSize",
+          "originalFilename",
+          "channel",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateVideoDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Updated video title (max 150 characters)",
+            "maxLength": 150,
+            "example": "StreamTube Demo Final"
+          },
+          "description": {
+            "type": "string",
+            "description": "Updated video description",
+            "example": "A comprehensive demo of the upload feature."
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Video visibility (PUBLIC, UNLISTED, PRIVATE)",
+            "enum": [
+              "PUBLIC",
+              "UNLISTED",
+              "PRIVATE"
+            ],
+            "example": "PUBLIC"
+          }
+        }
       },
       "ApiErrorEnvelope": {
         "type": "object",

@@ -9,7 +9,6 @@ import {
 } from '../test/create-test-data-source';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
-import { TestingModule } from '@nestjs/testing';
 
 const ALL_ENTITIES = [User, Channel, RefreshToken, VerificationToken];
 
@@ -122,6 +121,45 @@ describe('UsersService (integration)', () => {
 
       const result = await usersService.findByEmail('other@example.com');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findByIdWithChannel', () => {
+    it('returns the user with their channel relation loaded', async () => {
+      const user = await usersService.createUserWithChannel(
+        'profile@example.com',
+        'hashed',
+      );
+
+      const found = await usersService.findByIdWithChannel(user.id);
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(user.id);
+      expect(found!.channel).toBeDefined();
+      expect(found!.channel.nickname).toBe('profile');
+    });
+
+    it('returns null when user id is unknown', async () => {
+      const found = await usersService.findByIdWithChannel(
+        '00000000-0000-0000-0000-000000000000',
+      );
+      expect(found).toBeNull();
+    });
+  });
+
+  describe('findByEmailWithChannel', () => {
+    it('returns user with channel by email', async () => {
+      const user = await usersService.createUserWithChannel(
+        'byemail@example.com',
+        'hashed',
+      );
+
+      const found = await usersService.findByEmailWithChannel(
+        'byemail@example.com',
+      );
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(user.id);
+      expect(found!.email).toBe('byemail@example.com');
+      expect(found!.channel).toBeDefined();
     });
   });
 });
