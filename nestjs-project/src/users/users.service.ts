@@ -49,6 +49,13 @@ export class UsersService {
     });
   }
 
+  async findByIdWithChannel(id: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { id },
+      relations: ['channel'],
+    });
+  }
+
   async save(user: User): Promise<User> {
     return this.userRepository.save(user);
   }

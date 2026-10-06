@@ -5,5 +5,10 @@ export default registerAs('database', () => ({
   port: parseInt(process.env.DB_PORT || '5432', 10),
   username: process.env.DB_USERNAME || 'streamtube',
   password: process.env.DB_PASSWORD || 'streamtube',
-  name: process.env.DB_NAME || 'streamtube',
+  name:
+    process.env.NODE_ENV === 'test'
+      ? process.env.DB_DATABASE_TEST ||
+        process.env.DB_TEST_NAME ||
+        'streamtube_test'
+      : process.env.DB_NAME || 'streamtube',
 }));
