@@ -9,58 +9,58 @@ sources_mtime:
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 0/8 completed
+**SIs:** 8/8 backend completed
 
 ### SI-03.1 — Dependencies, Configuration Namespaces, and Docker Compose
-- **Status:** planned
-- **Tests:** env.validation.integration-spec.ts
-- **Observations:** Configuração inicial de storageConfig e queueConfig, compose.yaml com MinIO e Redis.
+- **Status:** completed
+- **Tests:** env.validation.integration-spec.ts (6/6 passing)
+- **Observations:** Configurados storageConfig (MinIO) e queueConfig (Redis) com validação Joi. compose.yaml atualizado com MinIO, Redis e worker standalone.
 
 ### SI-03.2 — Video Entity, Enums, and TypeORM Migrations
-- **Status:** planned
-- **Tests:** migrations.integration-spec.ts
-- **Observations:** Modelagem da entidade Video e migration CreateVideos com índice de idempotência.
+- **Status:** completed
+- **Tests:** migrations.integration-spec.ts (2/2 passing)
+- **Observations:** Entidade Video e migration 1790280000000-CreateVideos criadas com índice condicional de idempotência.
 
 ### SI-03.3 — Object Storage Service (MinIO / S3Client)
-- **Status:** planned
-- **Tests:** storage.service.spec.ts, storage.service.integration-spec.ts
-- **Observations:** Implementação do StorageService com @aws-sdk/client-s3 e inicialização de buckets.
+- **Status:** completed
+- **Tests:** storage.service.spec.ts (15/15 passing), storage.service.integration-spec.ts (6/6 passing)
+- **Observations:** StorageService com @aws-sdk/client-s3 inicializando buckets e fornecendo getVideoStream e getSignedDownloadUrl.
 
 ### SI-03.4 — Resumable Upload (tus protocol), Draft, and Security (anti-IDOR)
-- **Status:** planned
-- **Tests:** videos.service.spec.ts, videos.controller.spec.ts, videos.service.integration-spec.ts
-- **Observations:** Ingestão de vídeos até 10GB via protocolo tus e validação de canais.
+- **Status:** completed
+- **Tests:** videos.service.spec.ts (15/15 passing), videos.controller.spec.ts (11/11 passing), videos.service.integration-spec.ts (11/11 passing)
+- **Observations:** Upload tus integrado via @tus/server e @tus/s3-store; validação estrita anti-IDOR de canal no initUpload.
 
 ### SI-03.5 — BullMQ Queue and Processing Enqueue
-- **Status:** planned
+- **Status:** completed
 - **Tests:** videos.service.spec.ts, videos.service.integration-spec.ts
-- **Observations:** Enfileiramento de jobs de processamento assíncrono.
+- **Observations:** Fila video-processing com transição atômica para status PROCESSING e fallback para ERROR.
 
 ### SI-03.6 — Standalone Video Worker with FFmpeg
-- **Status:** planned
-- **Tests:** ffmpeg.service.spec.ts, video-processing.processor.spec.ts, video-processing.integration-spec.ts
-- **Observations:** Processamento com FFmpeg/ffprobe, extração de metadados e thumbnail.
+- **Status:** completed
+- **Tests:** ffmpeg.service.spec.ts (4/4 passing), video-processing.processor.spec.ts (4/4 passing), video-processing.integration-spec.ts (3/3 passing)
+- **Observations:** Worker standalone extraindo metadados e gerando thumbnail aos 1,0s com FFmpeg/ffprobe.
 
 ### SI-03.7 — HTTP 206 Streaming and Direct Download
-- **Status:** planned
-- **Tests:** videos.e2e-spec.ts
-- **Observations:** Streaming com Range requests (RFC 7233) e download direto.
+- **Status:** completed
+- **Tests:** videos.e2e-spec.ts (17/17 passing)
+- **Observations:** Endpoint /videos/:publicId/stream com Range RFC 7233 (HTTP 206) e /videos/:publicId/download com cabeçalho attachment.
 
 ### SI-03.8 — Test Suite, End-to-End, and Verification
-- **Status:** planned
-- **Tests:** npm test, test:e2e
-- **Observations:** Validação completa da Definition of Done.
+- **Status:** completed
+- **Tests:** 32 suítes, 234 testes no backend (100% aprovados) e 4 suítes e2e (69 testes aprovados)
+- **Observations:** Cobertura de código dos módulos de domínio acima de 90%. tsc exit 0, eslint exit 0.
 
 ---
 
 ## Deliverables Status
 
-- [ ] Upload de até 10GB funcional sem travar a API (tus protocol + MinIO)
-- [ ] Pré-cadastro automático como rascunho com suporte a idempotência
-- [ ] Processamento automático de vídeo (duração e metadados)
-- [ ] Geração automática de thumbnail via FFmpeg
-- [ ] URL única por vídeo via nanoid
-- [ ] Streaming HTTP 206 Partial Content funcional (RFC 7233)
-- [ ] Download do vídeo disponível com Content-Disposition attachment
-- [ ] Docker Compose atualizado com MinIO, Redis e Worker dedicado
-- [ ] Definition of Done verde (testes, tsc, lint)
+- [x] Upload de até 10GB funcional sem travar a API (tus protocol + MinIO)
+- [x] Pré-cadastro automático como rascunho com suporte a idempotência
+- [x] Processamento automático de vídeo (duração e metadados)
+- [x] Geração automática de thumbnail via FFmpeg
+- [x] URL única por vídeo via nanoid
+- [x] Streaming HTTP 206 Partial Content funcional (RFC 7233)
+- [x] Download do vídeo disponível com Content-Disposition attachment
+- [x] Docker Compose atualizado com MinIO, Redis e Worker dedicado
+- [x] Definition of Done verde (testes backend, tsc, lint)
