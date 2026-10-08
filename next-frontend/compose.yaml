@@ -4,8 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - 3001:3000
+      - 3002:3000
     volumes:
       - .:/home/node/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - PORT=3000
+    command: npx next dev --hostname 0.0.0.0 --port 3000
