@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const { data, error, response } = await upstream.POST("/auth/login", {
     body: body as never,
   });
-  console.log(error, data, response);
+
   if (error) {
     return NextResponse.json<ApiErrorEnvelope>(error as ApiErrorEnvelope, {
       status: response.status,
@@ -19,13 +19,31 @@ export async function POST(request: Request) {
 
   const tokens = data as LoginTokenPair;
 
+  let userId = "";
+  let email = (body as Record<string, string>).email ?? "";
+  let channelSlug = "";
+
+  if (tokens.access_token) {
+    const profileRes = await upstream.GET("/auth/me", {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    });
+
+    if (profileRes.data) {
+      userId = profileRes.data.sub || "";
+      email = profileRes.data.email || email;
+      channelSlug = profileRes.data.channel_slug || "";
+    }
+  }
+
   // Seal tokens into the iron-session cookie — tokens never cross to the browser.
   await setSession({
     accessToken: tokens.access_token ?? "",
     refreshToken: tokens.refresh_token ?? "",
-    userId: "",
-    email: (body as Record<string, string>).email ?? "",
-    channelSlug: "",
+    userId,
+    email,
+    channelSlug,
   });
 
   // FE-facing body omits access_token / refresh_token (per API Contract).

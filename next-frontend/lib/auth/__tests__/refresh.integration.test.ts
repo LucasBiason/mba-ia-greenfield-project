@@ -15,7 +15,7 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-const { withRefresh } = await import("@/lib/auth/refresh");
+const { withRefresh, withAuthenticatedUpstream } = await import("@/lib/auth/refresh");
 const { setSession, getSession } = await import("@/lib/auth/session");
 const { env } = await import("@/lib/env");
 
@@ -102,6 +102,78 @@ describe("withRefresh", () => {
     const res = await withRefresh(() => fetch(UPSTREAM_URL));
     expect(res.status).toBe(401);
 
+    const session = await getSession();
+    expect(session.isLoggedIn).toBeFalsy();
+  });
+});
+
+describe("withAuthenticatedUpstream", () => {
+  it("executes successfully when session and token are valid", async () => {
+    server.use(
+      http.get(UPSTREAM_URL, () => HttpResponse.json({ success: true }))
+    );
+
+    const res = await withAuthenticatedUpstream(async (token) => {
+      const response = await fetch(UPSTREAM_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.ok ? await response.json() : undefined;
+      return { data, response };
+    });
+
+    expect(res.response.status).toBe(200);
+    expect(res.data).toEqual({ success: true });
+  });
+
+  it("transparently refreshes token and retries on 401", async () => {
+    let callCount = 0;
+    server.use(
+      http.get(UPSTREAM_URL, () => {
+        callCount++;
+        return callCount === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ success: true, retried: true });
+      }),
+      http.post(`${env.API_URL}/auth/refresh`, () =>
+        HttpResponse.json({
+          access_token: "refreshed-token-xyz",
+          refresh_token: "refreshed-rt-xyz",
+        })
+      )
+    );
+
+    const res = await withAuthenticatedUpstream(async (token) => {
+      const response = await fetch(UPSTREAM_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.ok ? await response.json() : undefined;
+      return { data, response };
+    });
+
+    expect(res.response.status).toBe(200);
+    expect(res.data).toEqual({ success: true, retried: true });
+
+    const session = await getSession();
+    expect(session.accessToken).toBe("refreshed-token-xyz");
+    expect(session.isLoggedIn).toBe(true);
+  });
+
+  it("destroys session and returns 401 when refresh fails", async () => {
+    server.use(
+      http.get(UPSTREAM_URL, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${env.API_URL}/auth/refresh`, () =>
+        new HttpResponse(null, { status: 401 })
+      )
+    );
+
+    const res = await withAuthenticatedUpstream(async (token) => {
+      const response = await fetch(UPSTREAM_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return { response };
+    });
+
+    expect(res.response.status).toBe(401);
     const session = await getSession();
     expect(session.isLoggedIn).toBeFalsy();
   });
