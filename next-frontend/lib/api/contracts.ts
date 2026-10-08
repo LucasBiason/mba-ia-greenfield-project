@@ -55,3 +55,29 @@ export type RefreshTokenPair =
 // Shared error envelope (all auth 4xx responses)
 export type ApiErrorEnvelope =
   paths["/auth/register"]["post"]["responses"][400]["content"]["application/json"];
+
+// ─── Videos ───────────────────────────────────────────────────────────────────
+
+export type InitUploadDto =
+  paths["/videos/upload/init"]["post"]["requestBody"]["content"]["application/json"];
+
+export type UploadResponseDto =
+  paths["/videos/upload/init"]["post"]["responses"][201]["content"]["application/json"];
+
+export type CompleteUploadDto =
+  paths["/videos/{publicId}/complete"]["post"]["requestBody"]["content"]["application/json"];
+
+export type UpdateVideoDto =
+  paths["/videos/{publicId}"]["patch"]["requestBody"]["content"]["application/json"];
+
+export type VideoResponseDto =
+  paths["/videos/{publicId}"]["get"]["responses"][200]["content"]["application/json"];
+
+export type VideoListResponse =
+  paths["/videos"]["get"]["responses"][200]["content"]["application/json"];
+
+// ─── User Profile / Me ────────────────────────────────────────────────────────
+
+export type UserProfileResponse =
+  paths["/auth/me"]["get"]["responses"][200]["content"]["application/json"];
+

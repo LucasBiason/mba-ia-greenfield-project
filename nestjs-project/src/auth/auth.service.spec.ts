@@ -766,3 +766,78 @@ describe('AuthService — resetPassword', () => {
     expect(qbMock.execute).toHaveBeenCalled();
   });
 });
+
+describe('AuthService — getUserProfile', () => {
+  let authService: AuthService;
+  let usersService: jest.Mocked<UsersService>;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      imports: [
+        JwtModule.register({
+          secret: 'test-secret',
+          signOptions: { expiresIn: '15m' },
+        }),
+      ],
+      providers: [
+        AuthService,
+        {
+          provide: UsersService,
+          useValue: {
+            findByIdWithChannel: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(VerificationToken),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: {},
+        },
+        {
+          provide: authConfig.KEY,
+          useValue: mockAuthConfig,
+        },
+      ],
+    }).compile();
+
+    authService = module.get<AuthService>(AuthService);
+    usersService = module.get(UsersService);
+  });
+
+  it('returns profile with channel info when user and channel exist', async () => {
+    usersService.findByIdWithChannel.mockResolvedValue({
+      id: 'u1',
+      email: 'user@example.com',
+      channel: {
+        id: 'c1',
+        nickname: 'user-slug',
+      },
+    } as any);
+
+    const profile = await authService.getUserProfile('u1');
+    expect(profile).toEqual({
+      sub: 'u1',
+      email: 'user@example.com',
+      channel_id: 'c1',
+      channel_slug: 'user-slug',
+    });
+  });
+
+  it('returns profile with null channel info when user is not found', async () => {
+    usersService.findByIdWithChannel.mockResolvedValue(null);
+
+    const profile = await authService.getUserProfile('unknown-id');
+    expect(profile).toEqual({
+      sub: 'unknown-id',
+      email: '',
+      channel_id: null,
+      channel_slug: null,
+    });
+  });
+});

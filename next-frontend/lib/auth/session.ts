@@ -12,13 +12,26 @@ export interface SessionData {
   isLoggedIn: boolean;
 }
 
+const SESSION_PWD =
+  process.env.SESSION_PASSWORD ||
+  (typeof env !== "undefined" ? env.SESSION_PASSWORD : undefined);
+
+if (!SESSION_PWD) {
+  throw new Error(
+    "SESSION_PASSWORD environment variable is required (must be at least 32 characters)",
+  );
+}
+
 export const sessionOptions: SessionOptions = {
-  password: env.SESSION_PASSWORD,
+  password: SESSION_PWD,
   cookieName: "streamtube_session",
   ttl: 60 * 60 * 24 * 14, // 14 days (matches refresh-token horizon)
   cookieOptions: {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
+    secure:
+      process.env.NODE_ENV === "production"
+        ? true
+        : process.env.COOKIE_SECURE === "true",
     sameSite: "lax",
     path: "/",
   },

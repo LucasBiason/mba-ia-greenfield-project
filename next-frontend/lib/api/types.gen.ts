@@ -189,9 +189,153 @@ export interface paths {
         };
         /**
          * Get current user
-         * @description Returns the authenticated user's profile from the JWT payload.
+         * @description Returns the authenticated user's profile and channel information.
          */
         get: operations["AuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/upload/init": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initialize a video upload draft
+         * @description Creates a new video draft in UPLOADING status and returns the tus upload endpoint.
+         */
+        post: operations["VideosController_initUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/{publicId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete video upload
+         * @description Notifies upload completion, moves status to PROCESSING and enqueues FFmpeg processing job.
+         */
+        post: operations["VideosController_completeUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List videos
+         * @description Returns a catalog of videos, filtered by channel when requested.
+         */
+        get: operations["VideosController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get video details by public ID
+         * @description Returns video details by 12-char nanoid identifier.
+         */
+        get: operations["VideosController_getByPublicId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update video metadata
+         * @description Updates editable video metadata (title, description, visibility) for the channel owner.
+         */
+        patch: operations["VideosController_updateMetadata"];
+        trace?: never;
+    };
+    "/videos/{publicId}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream video content
+         * @description Streams video content with support for RFC 7233 HTTP 206 Partial Content range requests.
+         */
+        get: operations["VideosController_streamVideo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/{publicId}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get video thumbnail image
+         * @description Streams JPEG thumbnail image generated for the video.
+         */
+        get: operations["VideosController_getThumbnail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/{publicId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download original video file
+         * @description Streams video binary with Content-Disposition attachment header for direct download.
+         */
+        get: operations["VideosController_downloadVideo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -210,6 +354,168 @@ export interface components {
         RefreshTokenDto: Record<string, never>;
         ForgotPasswordDto: Record<string, never>;
         ResetPasswordDto: Record<string, never>;
+        InitUploadDto: {
+            /**
+             * Format: uuid
+             * @description Channel UUID that will own the video (optional, defaults to authenticated user channel)
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            channelId?: string;
+            /**
+             * @description Initial video title (optional at draft stage)
+             * @example Introduction to Full Cycle
+             */
+            title?: string;
+            /**
+             * @description Original name of the video file
+             * @example fullcycle-lesson1.mp4
+             */
+            fileName: string;
+            /**
+             * @description File size in bytes (max 10GB = 10737418240 bytes)
+             * @example 104857600
+             */
+            fileSize: number;
+            /**
+             * @description MIME type of the video (video/mp4, video/webm, video/quicktime)
+             * @example video/mp4
+             */
+            mimeType: string;
+            /**
+             * @description Client-generated token to avoid duplicate drafts on network retries
+             * @example retry-uuid-12345
+             */
+            idempotencyKey?: string;
+        };
+        UploadResponseDto: {
+            /**
+             * Format: uuid
+             * @description Internal video UUID used by the tus upload session
+             */
+            id: string;
+            /**
+             * @description Unique 12-character public identifier
+             * @example HP8JZ2O3bROa
+             */
+            publicId: string;
+            /**
+             * @description Initial video title
+             * @example StreamTube Demo
+             */
+            title: string;
+            /**
+             * @description Current upload status
+             * @example UPLOADING
+             * @enum {string}
+             */
+            status: "DRAFT" | "UPLOADING" | "PROCESSING" | "READY" | "ERROR";
+            /**
+             * @description Tus resumable upload endpoint for streaming chunks
+             * @example /videos/upload/d17b3c8f-5192-49ee-9150-13eeadcfef02
+             */
+            uploadUrl: string;
+            /**
+             * @description Pre-allocated storage key in the bucket
+             * @example videos/HP8JZ2O3bROa/demo.mp4
+             */
+            storageKey: string;
+        };
+        CompleteUploadDto: {
+            /**
+             * @description Storage key in the videos bucket (must strictly match videos/<publicId>/<filename>)
+             * @example videos/abc123xyz456/sample.mp4
+             */
+            storageKey?: string;
+            /**
+             * @description File size in bytes (max 10GB = 10,737,418,240 bytes)
+             * @example 10485760
+             */
+            fileSize?: number;
+        };
+        VideoChannelDto: {
+            /**
+             * Format: uuid
+             * @description Channel public UUID
+             */
+            id: string;
+            /** @description Channel name */
+            name: string;
+            /** @description Channel unique nickname/handle */
+            nickname: string;
+        };
+        VideoResponseDto: {
+            /**
+             * @description Unique 12-character public identifier
+             * @example HP8JZ2O3bROa
+             */
+            publicId: string;
+            /**
+             * @description Video title
+             * @example StreamTube Demo
+             */
+            title?: Record<string, never> | null;
+            /** @description Video description */
+            description?: Record<string, never> | null;
+            /**
+             * @description Video processing status
+             * @example READY
+             * @enum {string}
+             */
+            status: "DRAFT" | "UPLOADING" | "PROCESSING" | "READY" | "ERROR";
+            /**
+             * @description Video visibility
+             * @example PUBLIC
+             * @enum {string}
+             */
+            visibility: "PUBLIC" | "UNLISTED" | "PRIVATE";
+            /**
+             * @description Total file size in bytes (up to 10GB)
+             * @example 104857600
+             */
+            fileSize: string;
+            /**
+             * @description Original uploaded filename
+             * @example demo.mp4
+             */
+            originalFilename: string;
+            /** @description Storage key for thumbnail image */
+            thumbnailKey?: Record<string, never> | null;
+            /**
+             * @description Video duration in seconds
+             * @example 120
+             */
+            durationInSeconds?: Record<string, never> | null;
+            /** @description Channel that owns this video */
+            channel: components["schemas"]["VideoChannelDto"];
+            /**
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updatedAt: string;
+        };
+        UpdateVideoDto: {
+            /**
+             * @description Updated video title (max 150 characters)
+             * @example StreamTube Demo Final
+             */
+            title?: string;
+            /**
+             * @description Updated video description
+             * @example A comprehensive demo of the upload feature.
+             */
+            description?: string;
+            /**
+             * @description Video visibility (PUBLIC, UNLISTED, PRIVATE)
+             * @example PUBLIC
+             * @enum {string}
+             */
+            visibility?: "PUBLIC" | "UNLISTED" | "PRIVATE";
+        };
         ApiErrorEnvelope: {
             /** @example 401 */
             statusCode: number;
@@ -565,7 +871,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Current user payload */
+            /** @description Current user payload and channel */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -576,11 +882,366 @@ export interface operations {
                         sub?: string;
                         /** Format: email */
                         email?: string;
+                        /** Format: uuid */
+                        channel_id?: string | null;
+                        channel_slug?: string | null;
                     };
                 };
             };
             /** @description Missing or invalid access token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_initUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InitUploadDto"];
+            };
+        };
+        responses: {
+            /** @description Video upload draft initialized successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponseDto"];
+                };
+            };
+            /** @description Validation failed on request body parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid authentication token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated user is not the owner of the channel (anti-IDOR) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Channel not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description File size exceeds maximum allowed limit (10GB) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported video MIME type format */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_completeUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteUploadDto"];
+            };
+        };
+        responses: {
+            /** @description Video transitioned to PROCESSING and enqueued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResponseDto"];
+                };
+            };
+            /** @description Validation failed or storageKey does not belong to this video */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid authentication token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated user is not the channel owner */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Video not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_findAll: {
+        parameters: {
+            query?: {
+                channelId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of video resources */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResponseDto"][];
+                };
+            };
+        };
+    };
+    VideosController_getByPublicId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Video metadata details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResponseDto"];
+                };
+            };
+            /** @description Private video not accessible by current user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Video not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_updateMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVideoDto"];
+            };
+        };
+        responses: {
+            /** @description Video metadata updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResponseDto"];
+                };
+            };
+            /** @description Missing or invalid authentication token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated user is not the channel owner */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Video not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_streamVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Full video content stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Partial range content stream */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Video not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Video is not yet in READY status */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_getThumbnail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thumbnail image binary stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Video or thumbnail not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VideosController_downloadVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Video download binary stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Video not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

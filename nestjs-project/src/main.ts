@@ -15,6 +15,21 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') ?? 3000;
 
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    exposedHeaders: [
+      'Location',
+      'Upload-Offset',
+      'Upload-Length',
+      'Tus-Version',
+      'Tus-Resumable',
+      'Tus-Max-Size',
+      'Tus-Extension',
+    ],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

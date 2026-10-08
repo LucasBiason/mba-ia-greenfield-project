@@ -249,15 +249,17 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get current user',
     description:
-      "Returns the authenticated user's profile from the JWT payload.",
+      "Returns the authenticated user's profile and channel information.",
   })
   @ApiResponse({
     status: 200,
-    description: 'Current user payload',
+    description: 'Current user payload and channel',
     schema: {
       properties: {
         sub: { type: 'string', format: 'uuid' },
         email: { type: 'string', format: 'email' },
+        channel_id: { type: 'string', format: 'uuid', nullable: true },
+        channel_slug: { type: 'string', nullable: true },
       },
     },
   })
@@ -266,7 +268,12 @@ export class AuthController {
     description: 'Missing or invalid access token',
     schema: { $ref: getSchemaPath(ApiErrorEnvelope) },
   })
-  me(@CurrentUser() user: JwtPayload): JwtPayload {
-    return user;
+  async me(@CurrentUser() user: JwtPayload): Promise<{
+    sub: string;
+    email: string;
+    channel_id: string | null;
+    channel_slug: string | null;
+  }> {
+    return this.authService.getUserProfile(user.sub);
   }
 }
