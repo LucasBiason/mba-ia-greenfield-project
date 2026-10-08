@@ -45,9 +45,9 @@ O projeto é um monorepo baseado em containers Docker. Cada subprojeto sobe sua 
 - **API** (NestJS 11) — regras de negócio, autenticação (JWT + refresh token rotation), envio de e-mails e acesso ao banco.
 - **Database** (PostgreSQL 17) — usuários, canais e tokens de autenticação.
 - **Email Service** (Mailpit) — captura os e-mails transacionais (confirmação de conta e recuperação de senha) em uma UI local.
-- **Video Worker** (FFmpeg) — processamento de vídeos *(planejado — Fase 03)*.
-- **Object Storage** (S3/MinIO) — arquivos de vídeo e thumbnails *(planejado — Fase 03)*.
-- **Message Queue** — fila de processamento de vídeos *(planejado — Fase 03)*.
+- **Video Worker** (FFmpeg) — processamento assíncrono de vídeos (extração de metadados e geração de thumbnails).
+- **Object Storage** (S3/MinIO) — armazenamento de arquivos de vídeo e thumbnails.
+- **Message Queue** (Redis 7 + BullMQ) — fila de orquestração assíncrona de processamento de vídeos.
 
 O diagrama de arquitetura completo (C4) está em `docs/diagrams/software-arch.mermaid`.
 
@@ -79,6 +79,9 @@ Serviços disponíveis:
 |---------|-------------|
 | API NestJS | http://localhost:3000 |
 | PostgreSQL | `localhost:5432` (db/user/senha: `streamtube`) |
+| MinIO (S3 API / Console) | `http://localhost:9000` / `http://localhost:9001` (minioadmin/minioadmin) |
+| Redis | `localhost:6379` |
+| Video Worker | Executa via container `worker` com FFmpeg |
 | Mailpit (UI de e-mails) | http://localhost:8025 |
 | Swagger (opcional) | http://localhost:3000/api/docs — habilite com `SWAGGER_ENABLED=true` |
 
@@ -195,7 +198,7 @@ green-field-ia-project/
 |------|-----------|--------|
 | **01** | Configuração Base do Projeto | ✅ Concluída |
 | **02** | Cadastro, Login e Gerenciamento de Conta | ✅ Concluída |
-| **03** | Upload e Processamento de Vídeos | ⏳ Planejada |
+| **03** | Upload e Processamento de Vídeos | ✅ Concluída |
 | **04** | Gerenciamento de Vídeos e Canal | ⏳ Planejada |
 | **05** | Página de Visualização do Vídeo | ⏳ Planejada |
 | **06** | Interações Sociais (Likes, Comentários, Inscrições) | ⏳ Planejada |
@@ -208,8 +211,11 @@ Detalhes completos em `docs/project-plan.md`.
 | Camada | Tecnologia |
 |--------|------------|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, React Hook Form + Zod, iron-session, openapi-fetch |
-| Backend | NestJS 11, TypeScript, TypeORM, JWT, Argon2, Mailer (Handlebars) |
+| Backend | NestJS 11, TypeScript, TypeORM, JWT, Argon2, BullMQ, tus protocol (@tus/server), AWS SDK S3 (@aws-sdk/client-s3), Mailer (Handlebars) |
+| Worker | Node.js, BullMQ, FFmpeg & ffprobe (fluent-ffmpeg) |
 | Banco de Dados | PostgreSQL 17 |
+| Filas & Cache | Redis 7 |
+| Object Storage | MinIO |
 | E-mail (dev) | Mailpit |
 | Containerização | Docker, Docker Compose |
 | Testes | Jest, Supertest (backend); Vitest, MSW, Playwright (frontend) |

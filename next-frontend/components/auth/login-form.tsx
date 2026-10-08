@@ -51,9 +51,22 @@ function LoginForm({ className, ...props }: React.ComponentProps<"form">) {
     }
 
     // On 200 the BFF has already sealed the iron-session cookie (tokens never
-    // cross to the browser, per TD-02). Refresh so server chrome reflects the
-    // authenticated session (per phase-02-auth-frontend/TD-06).
-    router.refresh()
+    // cross to the browser, per TD-02). Refresh and redirect to callbackUrl.
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null
+    const callbackUrl = params?.get("callbackUrl") || "/studio"
+
+    const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test"
+    if (!isTest && typeof window !== "undefined") {
+      window.location.assign(callbackUrl)
+    } else {
+      router.refresh()
+      if (typeof router.push === "function") {
+        router.push(callbackUrl)
+      }
+    }
   }
 
   return (

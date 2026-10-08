@@ -1,11 +1,15 @@
 import { env } from "@/lib/env";
-
 import { destroySession, getSession, setSession } from "./session";
 
 let refreshPromise: Promise<boolean> | null = null;
 
-async function tryRefresh(): Promise<boolean> {
+export async function tryRefresh(): Promise<boolean> {
   const session = await getSession();
+
+  if (!session?.refreshToken) {
+    await destroySession();
+    return false;
+  }
 
   const res = await fetch(`${env.API_URL}/auth/refresh`, {
     method: "POST",
@@ -39,7 +43,7 @@ async function tryRefresh(): Promise<boolean> {
   return true;
 }
 
-function refreshOnce(): Promise<boolean> {
+export function refreshOnce(): Promise<boolean> {
   if (!refreshPromise) {
     refreshPromise = tryRefresh().finally(() => {
       refreshPromise = null;
@@ -71,4 +75,55 @@ export async function withRefresh(
   }
 
   return fetcher();
+}
+
+export async function withAuthenticatedUpstream<T>(
+  action: (accessToken: string) => Promise<{ data?: T; error?: unknown; response: Response }>
+): Promise<{ data?: T; error?: unknown; response: Response }> {
+  let session = await getSession();
+
+  if (!session?.isLoggedIn || !session?.accessToken) {
+    return {
+      error: {
+        statusCode: 401,
+        error: "UNAUTHORIZED",
+        message: "Autenticação necessária para realizar esta operação",
+        code: null,
+      },
+      response: new Response(null, { status: 401 }),
+    };
+  }
+
+  let result = await action(session.accessToken);
+
+  if (result.response.status === 401) {
+    if (session.refreshToken) {
+      const refreshed = await refreshOnce();
+      if (refreshed) {
+        session = await getSession();
+        if (session.accessToken) {
+          result = await action(session.accessToken);
+        }
+      } else {
+        await destroySession();
+        return {
+          error: {
+            statusCode: 401,
+            error: "UNAUTHORIZED",
+            message: "Sessão expirada. Faça login novamente.",
+            code: null,
+          },
+          response: new Response(null, { status: 401 }),
+        };
+      }
+    } else {
+      await destroySession();
+    }
+  }
+
+  if (result.response.status === 401) {
+    await destroySession();
+  }
+
+  return result;
 }

@@ -101,4 +101,24 @@ export const handlers = [
       { status: 200 }
     );
   }),
+
+  // GET /auth/me
+  http.get(`${env.API_URL}/auth/me`, ({ request }) => {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return HttpResponse.json(
+        errorEnvelope(401, "UNAUTHORIZED", "Unauthorized"),
+        { status: 401 }
+      );
+    }
+    return HttpResponse.json(
+      {
+        sub: "user-fixture-id",
+        email: "user@example.com",
+        channel_id: "chan-fixture-1",
+        channel_slug: "user-channel",
+      },
+      { status: 200 }
+    );
+  }),
 ];
